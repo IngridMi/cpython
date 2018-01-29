@@ -37,6 +37,8 @@ extern "C" {
 #define COPY_DICT_WITHOUT_KEYS   34
 #define PUSH_EXC_INFO            35
 #define POP_EXCEPT_AND_RERAISE   37
+#define FORMAT_SIMPLE            40
+#define FORMAT_WITH_SPEC         41
 #define WITH_EXCEPT_START        49
 #define GET_AITER                50
 #define GET_ANEXT                51
@@ -125,8 +127,8 @@ extern "C" {
 #define SET_ADD                 146
 #define MAP_ADD                 147
 #define LOAD_CLASSDEREF         148
+#define CONVERT_VALUE           149
 #define MATCH_CLASS             152
-#define FORMAT_VALUE            155
 #define BUILD_CONST_KEY_MAP     156
 #define BUILD_STRING            157
 #define LOAD_METHOD             160
@@ -145,23 +147,23 @@ extern "C" {
 #define LOAD_ATTR_SPLIT_KEYS     36
 #define LOAD_ATTR_WITH_HINT      38
 #define LOAD_ATTR_SLOT           39
-#define LOAD_ATTR_MODULE         40
-#define LOAD_GLOBAL_ADAPTIVE     41
-#define LOAD_GLOBAL_MODULE       42
-#define LOAD_GLOBAL_BUILTIN      43
-#define LOAD_METHOD_ADAPTIVE     44
-#define LOAD_METHOD_CACHED       45
-#define LOAD_METHOD_CLASS        46
-#define LOAD_METHOD_MODULE       47
-#define STORE_ATTR_ADAPTIVE      48
-#define STORE_ATTR_SPLIT_KEYS    58
-#define STORE_ATTR_SLOT          80
-#define STORE_ATTR_WITH_HINT     81
-#define LOAD_FAST__LOAD_FAST     87
-#define STORE_FAST__LOAD_FAST    88
-#define LOAD_FAST__LOAD_CONST   120
-#define LOAD_CONST__LOAD_FAST   122
-#define STORE_FAST__STORE_FAST  123
+#define LOAD_ATTR_MODULE         42
+#define LOAD_GLOBAL_ADAPTIVE     43
+#define LOAD_GLOBAL_MODULE       44
+#define LOAD_GLOBAL_BUILTIN      45
+#define LOAD_METHOD_ADAPTIVE     46
+#define LOAD_METHOD_CACHED       47
+#define LOAD_METHOD_CLASS        48
+#define LOAD_METHOD_MODULE       58
+#define STORE_ATTR_ADAPTIVE      80
+#define STORE_ATTR_SPLIT_KEYS    81
+#define STORE_ATTR_SLOT          87
+#define STORE_ATTR_WITH_HINT     88
+#define LOAD_FAST__LOAD_FAST    120
+#define STORE_FAST__LOAD_FAST   122
+#define LOAD_FAST__LOAD_CONST   123
+#define LOAD_CONST__LOAD_FAST   127
+#define STORE_FAST__STORE_FAST  128
 #ifdef NEED_OPCODE_JUMP_TABLES
 static uint32_t _PyOpcode_RelativeJump[8] = {
     0U,

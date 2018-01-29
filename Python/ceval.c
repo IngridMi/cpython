@@ -99,6 +99,14 @@ static void format_kwargs_error(PyThreadState *, PyObject *func, PyObject *kwarg
 static void format_awaitable_error(PyThreadState *, PyTypeObject *, int, int);
 static int get_exception_handler(PyCodeObject *, int, int*, int*, int*);
 
+typedef PyObject *(*convertion_func_ptr)(PyObject *);
+
+static const convertion_func_ptr CONVERSION_FUNCTIONS[4] = {
+    [FVC_STR] = PyObject_Str,
+    [FVC_REPR] = PyObject_Repr,
+    [FVC_ASCII] = PyObject_ASCII
+};
+
 #define NAME_ERROR_MSG \
     "name '%.200s' is not defined"
 #define UNBOUNDLOCAL_ERROR_MSG \
@@ -4346,7 +4354,7 @@ check_eval_breaker:
                 oparg = cache->adaptive.original_oparg;
                 STAT_DEC(LOAD_METHOD, unquickened);
                 JUMP_TO_INSTRUCTION(LOAD_METHOD);
-            }            
+            }
         }
 
         TARGET(LOAD_METHOD_CACHED): {
@@ -4364,7 +4372,7 @@ check_eval_breaker:
             assert(cache1->tp_version != 0);
             assert(self_cls->tp_dictoffset >= 0);
             assert(Py_TYPE(self_cls)->tp_dictoffset > 0);
-            
+
             // inline version of _PyObject_GetDictPtr for offset >= 0
             PyObject *dict = self_cls->tp_dictoffset != 0 ?
                 *(PyObject **) ((char *)self + self_cls->tp_dictoffset) : NULL;
@@ -4627,62 +4635,47 @@ check_eval_breaker:
             DISPATCH();
         }
 
-        TARGET(FORMAT_VALUE): {
-            /* Handles f-string value formatting. */
+        TARGET(CONVERT_VALUE): {
             PyObject *result;
-            PyObject *fmt_spec;
-            PyObject *value;
-            PyObject *(*conv_fn)(PyObject *);
-            int which_conversion = oparg & FVC_MASK;
-            int have_fmt_spec = (oparg & FVS_MASK) == FVS_HAVE_SPEC;
-
-            fmt_spec = have_fmt_spec ? POP() : NULL;
-            value = POP();
-
-            /* See if any conversion is specified. */
-            switch (which_conversion) {
-            case FVC_NONE:  conv_fn = NULL;           break;
-            case FVC_STR:   conv_fn = PyObject_Str;   break;
-            case FVC_REPR:  conv_fn = PyObject_Repr;  break;
-            case FVC_ASCII: conv_fn = PyObject_ASCII; break;
-            default:
-                _PyErr_Format(tstate, PyExc_SystemError,
-                              "unexpected conversion flag %d",
-                              which_conversion);
+            PyObject *value = POP();
+            convertion_func_ptr  conv_fn;
+            assert(oparg >= FVC_STR && oparg <= FVC_ASCII);
+            conv_fn = CONVERSION_FUNCTIONS[oparg];
+            result = conv_fn(value);
+            Py_DECREF(value);
+            if (result == NULL) {
                 goto error;
             }
+            PUSH(result);
+            DISPATCH();
+        }
 
-            /* If there's a conversion function, call it and replace
-               value with that result. Otherwise, just use value,
-               without conversion. */
-            if (conv_fn != NULL) {
-                result = conv_fn(value);
-                Py_DECREF(value);
-                if (result == NULL) {
-                    Py_XDECREF(fmt_spec);
-                    goto error;
-                }
-                value = result;
-            }
-
-            /* If value is a unicode object, and there's no fmt_spec,
-               then we know the result of format(value) is value
-               itself. In that case, skip calling format(). I plan to
-               move this optimization in to PyObject_Format()
-               itself. */
-            if (PyUnicode_CheckExact(value) && fmt_spec == NULL) {
-                /* Do nothing, just transfer ownership to result. */
-                result = value;
-            } else {
-                /* Actually call format(). */
-                result = PyObject_Format(value, fmt_spec);
-                Py_DECREF(value);
-                Py_XDECREF(fmt_spec);
+        TARGET(FORMAT_SIMPLE): {
+            PyObject *value = TOP();
+            /* If value is a unicode object, then we know the result
+             * of format(value) is value itself. */
+            if (!PyUnicode_CheckExact(value)) {
+                PyObject *result = PyObject_Format(value, NULL);
                 if (result == NULL) {
                     goto error;
                 }
+                SET_TOP(result);
+                Py_DECREF(value);
             }
+            DISPATCH();
+        }
 
+        TARGET(FORMAT_WITH_SPEC): {
+            PyObject *fmt_spec = POP();
+            PyObject *value = POP();
+            PyObject *result;
+            /* Call format(). */
+            result = PyObject_Format(value, fmt_spec);
+            Py_DECREF(value);
+            Py_DECREF(fmt_spec);
+            if (result == NULL) {
+                goto error;
+            }
             PUSH(result);
             DISPATCH();
         }
